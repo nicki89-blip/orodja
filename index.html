@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Website Launcher</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { box-sizing: border-box; }
+    
+    .app-icon { transition: transform 0.2s ease, opacity 0.2s ease; }
+    .app-icon:active { transform: scale(0.95); opacity: 0.8; }
+    
+    .delete-mode .app-icon { animation: wiggle 0.3s ease-in-out infinite; }
+    
+    @keyframes wiggle {
+      0%, 100% { transform: rotate(-1deg); }
+      50% { transform: rotate(1deg); }
+    }
+    
+    .delete-badge { transition: opacity 0.2s ease; }
+    .modal-backdrop { backdrop-filter: blur(8px); }
+    
+    .toast { animation: slideIn 0.3s ease-out; }
+    
+    @keyframes slideIn {
+      from { transform: translateY(-100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    
+    /* Scrollbar styling for a cleaner look */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #16213e; }
+    ::-webkit-scrollbar-thumb { background: #3282b8; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #0f4c75; }
+  </style>
+ </head>
+ <body class="h-full">
+  <div id="app-wrapper" class="h-full w-full overflow-auto"></div>
+
+  <script>
+    // 1. CONFIGURATION
+    // Since we aren't in Canva, we set the design defaults manually here.
+    const config = {
+      background_color: "#1a1a2e",
+      surface_color: "#16213e",
+      text_color: "#edf2f4",
+      primary_action_color: "#0f4c75",
+      secondary_action_color: "#3282b8",
+      font_family: "system-ui",
+      font_size: 16,
+      page_title: "My Websites",
+      add_button_text: "Add Website"
+    };
+    
+    let currentWebsites = [];
+    let deleteMode = false;
+    let isLoading = false;
+
+    const iconOptions = ["🌐", "📱", "💻", "🎨", "📊", "🛍️", "📰", "🎮", "📚", "🎵", "📷", "✉️", "🔧", "⚡", "🌟", "🚀"];
+    const colorOptions = ["#ff6b6b", "#4ecdc4", "#45b7d1", "#f7b731", "#5f27cd", "#00d2d3", "#ff9ff3", "#54a0ff", "#48dbfb", "#1dd1a1"];
+
+    // 2. DATA STORAGE (Replaces Canva Data SDK)
+    // We use localStorage to save data in the browser.
+    const STORAGE_KEY = 'website_launcher_db';
+
+    function loadData() {
+        const data = localStorage.getItem(STORAGE_KEY);
+        if (data) {
+            currentWebsites = JSON.parse(data);
+        } else {
+            currentWebsites = [];
+        }
+        renderWebsites();
+    }
+
+    function saveData() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(currentWebsites));
+        renderWebsites();
+    }
+
+    // 3. RENDERING LOGIC
+    function renderWebsites() {
+      const wrapper = document.getElementById('app-wrapper');
+      
+      // Apply base styles
+      wrapper.style.fontFamily = `${config.font_family}, system-ui, sans-serif`;
+      wrapper.style.backgroundColor = config.background_color;
+      wrapper.style.color = config.text_color;
+
+      wrapper.innerHTML = `
+        <div class="min-h-full p-6">
+          <div id="page-header" class="max-w-6xl mx-auto mb-8">
+            <h1 id="header-title" class="font-bold mb-6" style="font-size: ${config.font_size * 1.75}px; color: ${config.text_color};">${config.page_title}</h1>
+            <div class="flex gap-3 flex-wrap">
+              <button id="add-website-btn" class="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:opacity-90 transition-opacity" style="background-color: ${config.primary_action_color}; font-size: ${config.font_size}px;">
+                ${config.add_button_text}
+              </button>
+              <button id="delete-mode-btn" class="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:opacity-90 transition-opacity" style="background-color: ${config.secondary_action_color}; font-size: ${config.font_size}px; display: ${currentWebsites.length > 0 ? 'block' : 'none'};">
+                ${deleteMode ? 'Done' : 'Edit'}
+              </button>
+            </div>
+          </div>
+
+          <div id="websites-grid" class="max-w-6xl mx-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 ${deleteMode ? 'delete-mode' : ''}">
+            ${currentWebsites.length === 0 ? `
+              <div class="col-span-full text-center py-16">
+                <div style="font-size: ${config.font_size * 3}px;">📱</div>
+                <p class="mt-4 opacity-60" style="font-size: ${config.font_size}px; color: ${config.text_color};">No websites yet</p>
+                <p class="mt-2 opacity-40" style="font-size: ${config.font_size * 0.875}px; color: ${config.text_color};">Click "${config.add_button_text}" to add your first website</p>
+              </div>
+            ` : currentWebsites.map(website => `
+              <div class="app-icon relative flex flex-col items-center cursor-pointer" data-id="${website.id}">
+                <div class="relative">
+                  <div class="w-20 h-20 rounded-2xl shadow-lg flex items-center justify-center text-4xl" style="background-color: ${website.color};">
+                    ${website.icon}
+                  </div>
+                  <button class="delete-badge absolute -top-2 -right-2 w-7 h-7 bg-red-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg" style="opacity: ${deleteMode ? '1' : '0'}; pointer-events: ${deleteMode ? 'auto' : 'none'}; font-size: ${config.font_size * 1.125}px;">
+                    ×
+                  </button>
+                </div>
+                <span class="mt-2 text-center px-1 line-clamp-2" style="font-size: ${config.font_size * 0.875}px; color: ${config.text_color};">${website.name}</span>
+              </div>
+            `).join('')}
+          </div>
+
+          <div id="toast-container" class="fixed top-6 left-1/2 transform -translate-x-1/2 z-50"></div>
+          <div id="modal-container"></div>
+        </div>
+      `;
+
+      // Attach Event Listeners
+      document.getElementById('add-website-btn').addEventListener('click', showAddModal);
+      document.getElementById('delete-mode-btn').addEventListener('click', toggleDeleteMode);
+
+      document.querySelectorAll('.app-icon').forEach(icon => {
+        const websiteId = icon.dataset.id;
+        const website = currentWebsites.find(w => w.id === websiteId);
+        
+        icon.addEventListener('click', (e) => {
+          if (!deleteMode && !e.target.classList.contains('delete-badge')) {
+            window.open(website.url, '_blank', 'noopener,noreferrer');
+          }
+        });
+
+        const deleteBtn = icon.querySelector('.delete-badge');
+        if (deleteBtn) {
+          deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showDeleteConfirmation(website);
+          });
+        }
+      });
+    }
+
+    function toggleDeleteMode() {
+      deleteMode = !deleteMode;
+      renderWebsites();
+    }
+
+    function showAddModal() {
+      const randomIcon = iconOptions[Math.floor(Math.random() * iconOptions.length)];
+      const randomColor = colorOptions[Math.floor(Math.random() * colorOptions.length)];
+
+      const modal = document.getElementById('modal-container');
+      modal.innerHTML = `
+        <div class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div class="rounded-2xl shadow-2xl max-w-md w-full p-6" style="background-color: ${config.surface_color};">
+            <h2 class="font-bold mb-6" style="font-size: ${config.font_size * 1.5}px; color: ${config.text_color};">Add Website</h2>
+            
+            <form id="add-website-form">
+              <div class="mb-4">
+                <label for="website-name" class="block mb-2 font-semibold" style="font-size: ${config.font_size}px; color: ${config.text_color};">Name</label>
+                <input type="text" id="website-name" required maxlength="30" class="w-full px-4 py-3 rounded-xl border-2 border-opacity-20 outline-none focus:border-opacity-100 transition-colors" style="font-size: ${config.font_size}px; background-color: ${config.surface_color}; color: ${config.text_color}; border-color: ${config.text_color};" placeholder="My Website">
+              </div>
+
+              <div class="mb-4">
+                <label for="website-url" class="block mb-2 font-semibold" style="font-size: ${config.font_size}px; color: ${config.text_color};">URL</label>
+                <input type="url" id="website-url" required class="w-full px-4 py-3 rounded-xl border-2 border-opacity-20 outline-none focus:border-opacity-100 transition-colors" style="font-size: ${config.font_size}px; background-color: ${config.surface_color}; color: ${config.text_color}; border-color: ${config.text_color};" placeholder="https://example.com">
+              </div>
+
+              <div class="mb-4">
+                <label class="block mb-2 font-semibold" style="font-size: ${config.font_size}px; color: ${config.text_color};">Icon</label>
+                <div class="grid grid-cols-8 gap-2">
+                  ${iconOptions.map(icon => `
+                    <button type="button" class="icon-option w-10 h-10 rounded-lg flex items-center justify-center text-2xl hover:opacity-75 transition-opacity border-2" data-icon="${icon}" style="background-color: ${config.surface_color}; border-color: transparent;">
+                      ${icon}
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+
+              <div class="mb-6">
+                <label class="block mb-2 font-semibold" style="font-size: ${config.font_size}px; color: ${config.text_color};">Color</label>
+                <div class="grid grid-cols-5 gap-2">
+                  ${colorOptions.map(color => `
+                    <button type="button" class="color-option w-12 h-12 rounded-lg hover:opacity-75 transition-opacity border-2" data-color="${color}" style="background-color: ${color}; border-color: transparent;">
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+
+              <div class="flex gap-3">
+                <button type="submit" id="submit-btn" class="flex-1 px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:opacity-90 transition-opacity" style="background-color: ${config.primary_action_color}; font-size: ${config.font_size}px;">
+                  Add
+                </button>
+                <button type="button" id="cancel-btn" class="flex-1 px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:opacity-90 transition-opacity" style="background-color: ${config.secondary_action_color}; font-size: ${config.font_size}px;">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      `;
+
+      let selectedIcon = randomIcon;
+      let selectedColor = randomColor;
+
+      // Selection Logic
+      const updateSelection = () => {
+          document.querySelectorAll('.icon-option').forEach(btn => {
+             btn.style.borderColor = (btn.dataset.icon === selectedIcon) ? config.primary_action_color : 'transparent';
+          });
+          document.querySelectorAll('.color-option').forEach(btn => {
+             btn.style.borderColor = (btn.dataset.color === selectedColor) ? config.text_color : 'transparent';
+          });
+      };
+
+      // Initial selection highlight
+      setTimeout(updateSelection, 0);
+
+      document.querySelectorAll('.icon-option').forEach(btn => {
+        btn.addEventListener('click', () => {
+          selectedIcon = btn.dataset.icon;
+          updateSelection();
+        });
+      });
+
+      document.querySelectorAll('.color-option').forEach(btn => {
+        btn.addEventListener('click', () => {
+          selectedColor = btn.dataset.color;
+          updateSelection();
+        });
+      });
+
+      document.getElementById('add-website-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        
+        const submitBtn = document.getElementById('submit-btn');
+        submitBtn.textContent = 'Adding...';
+        submitBtn.disabled = true;
+
+        const name = document.getElementById('website-name').value;
+        let url = document.getElementById('website-url').value;
+
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+          url = 'https://' + url;
+        }
+
+        const newWebsite = {
+          id: Date.now().toString(),
+          name,
+          url,
+          icon: selectedIcon,
+          color: selectedColor,
+          createdAt: new Date().toISOString()
+        };
+
+        // Add to array and save
+        currentWebsites.push(newWebsite);
+        saveData();
+
+        modal.innerHTML = '';
+        showToast('Website added successfully!');
+      });
+
+      document.getElementById('cancel-btn').addEventListener('click', () => {
+        modal.innerHTML = '';
+      });
+
+      modal.querySelector('.modal-backdrop').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) {
+          modal.innerHTML = '';
+        }
+      });
+    }
+
+    function showDeleteConfirmation(website) {
+      const modal = document.getElementById('modal-container');
+      modal.innerHTML = `
+        <div class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div class="rounded-2xl shadow-2xl max-w-sm w-full p-6" style="background-color: ${config.surface_color};">
+            <h2 class="font-bold mb-4" style="font-size: ${config.font_size * 1.5}px; color: ${config.text_color};">Delete Website</h2>
+            <p class="mb-6" style="font-size: ${config.font_size}px; color: ${config.text_color}; opacity: 0.8;">Are you sure you want to delete "${website.name}"?</p>
+            
+            <div class="flex gap-3">
+              <button id="confirm-delete-btn" class="flex-1 px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:opacity-90 transition-opacity bg-red-500" style="font-size: ${config.font_size}px;">
+                Delete
+              </button>
+              <button id="cancel-delete-btn" class="flex-1 px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:opacity-90 transition-opacity" style="background-color: ${config.secondary_action_color}; font-size: ${config.font_size}px;">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('confirm-delete-btn').addEventListener('click', () => {
+        // Filter out the deleted website
+        currentWebsites = currentWebsites.filter(w => w.id !== website.id);
+        
+        // If no websites left, exit delete mode
+        if (currentWebsites.length === 0) deleteMode = false;
+        
+        saveData();
+        modal.innerHTML = '';
+        showToast('Website deleted successfully!');
+      });
+
+      document.getElementById('cancel-delete-btn').addEventListener('click', () => {
+        modal.innerHTML = '';
+      });
+
+      modal.querySelector('.modal-backdrop').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) {
+          modal.innerHTML = '';
+        }
+      });
+    }
+
+    function showToast(message) {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'toast px-6 py-3 rounded-xl shadow-2xl';
+      toast.style.backgroundColor = config.surface_color;
+      toast.style.color = config.text_color;
+      toast.style.fontSize = `${config.font_size}px`;
+      toast.textContent = message;
+      
+      container.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // Initialize the app
+    loadData();
+  </script>
+ </body>
+</html>
