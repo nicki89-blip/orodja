@@ -38,40 +38,38 @@
 
     // ⬇️ TUKAJ SO VAŠE JAVNE STRANI ⬇️
     const publicWebsites = [
-  { 
-    id: "public_1", 
-    name: "Bingo", 
-    url: "https://nicki89-blip.github.io/bingo/", 
-    icon: "🌐", 
-    color: "#4285F4" 
-  },
-  { 
-    id: "public_2", 
-    name: "Angleščina", 
-    url: "https://nicki89-blip.github.io/angslo/", 
-    icon: "📺", 
-    color: "#FF0000" 
-  },
-  { 
-    id: "public_3", 
-    name: "Pospravimo razred", 
-    url: "https://larakin.my.canva.site/cleanup.com", // Fixed URL
-    icon: "🎨", 
-    color: "#00C4CC" 
-  },
-  { 
-    id: "public_4", // Fixed ID
-    name: "Naredi test", 
-    url: "https://nicki89-blip.github.io/test-maker/", // Fixed URL
-    icon: "🎨", 
-    color: "#00C4CC" 
-  },
-];
+      { 
+        id: "public_1", 
+        name: "Bingo", 
+        url: "https://nicki89-blip.github.io/bingo/", 
+        icon: "🌐", 
+        color: "#4285F4" 
+      },
+      { 
+        id: "public_2", 
+        name: "Angleščina", 
+        url: "https://nicki89-blip.github.io/angslo/", 
+        icon: "📺", 
+        color: "#FF0000" 
+      },
+      { 
+        id: "public_3", 
+        name: "Pospravimo razred", 
+        url: "https://larakin.my.canva.site/cleanup.com", 
+        icon: "🎨", 
+        color: "#00C4CC" 
+      },
+      { 
+        id: "public_4", 
+        name: "Naredi test", 
+        url: "https://nicki89-blip.github.io/test-maker/", 
+        icon: "📝", 
+        color: "#00C4CC" 
+      },
+    ];
 
     let currentWebsites = [];
     let deleteMode = false;
-    const iconOptions = ["🌐", "📱", "💻", "🎨", "📊", "🛍️", "📰", "🎮", "📚", "🎵", "📷", "✉️", "🔧", "⚡", "🌟", "🚀"];
-    const colorOptions = ["#ff6b6b", "#4ecdc4", "#45b7d1", "#f7b731", "#5f27cd", "#00d2d3", "#ff9ff3", "#54a0ff", "#48dbfb", "#1dd1a1"];
     const STORAGE_KEY = "website_launcher_db";
 
     function loadData() {
@@ -154,6 +152,7 @@
     }
 
     function toggleDeleteMode() { deleteMode = !deleteMode; renderWebsites(); }
+    
     function showAddModal() {
       const modal = document.getElementById("modal-container");
       modal.innerHTML = `
@@ -176,7 +175,8 @@
         saveLocalData({ id: "private_" + Date.now(), name, url, icon: "🌐", color: "#4ecdc4", createdAt: new Date().toISOString() });
         modal.innerHTML = "";
       });
-      document.getElementById("cancel-btn").addEventListener("click", () => modal.innerHTML = "";
+      // This was the broken line, now fixed:
+      document.getElementById("cancel-btn").addEventListener("click", () => modal.innerHTML = "");
     }
     
     function showDeleteConfirmation(w) {
